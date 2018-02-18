@@ -2,7 +2,7 @@
 /*
 	project: PWAMP
 	file:    ABSPATH/wp-content/plugins/pwamp/themes/library.php
-	version: 0.1.0
+	version: 1.0.0
 	author:  Rickey Gu
 	web:     https://flexplat.com
 	email:   rickey29@gmail.com
@@ -21,7 +21,7 @@ class PWAMP_Library
 	}
 
 
-	public function update_content(&$page, $home_url, $permalink_structure)
+	protected function update_content(&$page, $home_url, $permalink_structure)
 	{
 		$page = preg_replace('#^<!DOCTYPE html>$#im', '<!doctype html>', $page, 1);
 		$page = preg_replace('#^<html #im', '<html amp ', $page, 1);
@@ -84,7 +84,7 @@ class PWAMP_Library
 		return $page;
 	}
 
-	public function update_header(&$page, $canonical)
+	protected function update_header(&$page, $canonical)
 	{
 		// The mandatory tag 'amphtml engine v0.js script' is missing or incorrect.
 		$amp_header = '<script async src="https://cdn.ampproject.org/v0.js"></script>' . "\n";

@@ -37,7 +37,7 @@ Enter "https://yoursite.com/?amp=off" in your web browser address bar.
 == Changelog ==
 
 = 1.0.0 =
-(Sat., Feb. 17, 2018)
+(Sun., Feb. 18, 2018)
 * primary development
 
 == Upgrade Notice ==

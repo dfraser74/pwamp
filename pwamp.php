@@ -3,7 +3,7 @@
 Plugin Name: PWAMP
 Plugin URI:  https://flexplat.com/pwamp/
 Description: PWAMP is a WordPress solution for both lightning fast load time of AMP pages and first load cache-enabled of PWA pages.
-Version:     0.1.0
+Version:     1.0.0
 Author:      Rickey Gu
 Author URI:  https://flexplat.com
 Text Domain: pwamp
@@ -139,7 +139,7 @@ class PWAMP
 		This plugin only works on some themes.  ( Check current supporting theme list for detail. )  And it only works for end
 		user pages; not for any dashboard and/or wp-login.php pages.
 	*/
-	public function validate()
+	private function validate()
 	{
 		if ( current_user_can( 'manage_options' ) || $GLOBALS['pagenow'] === 'wp-login.php' )
 		{
@@ -333,7 +333,7 @@ self.addEventListener(\'install\', function(event) {
 	/*
 		Detect end user's device.
 	*/
-	public function get_device()
+	private function get_device()
 	{
 		$user_agent = !empty($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
 		$accept = !empty($_SERVER['HTTP_ACCEPT']) ? $_SERVER['HTTP_ACCEPT'] : '';
@@ -385,7 +385,7 @@ self.addEventListener(\'install\', function(event) {
 		$permalink_structure = get_option('permalink_structure');
 
 		$theme = $this->theme_id;
-		$template = 'index';
+		$template = 'update';
 
 		$file = plugin_dir_path(__FILE__) . 'themes/' . $theme . '.php';
 
@@ -504,76 +504,82 @@ self.addEventListener(\'install\', function(event) {
 
 		return $function;
 	}
+
+
+	/*
+		The main function of this plugin.
+	*/
+	public function run()
+	{
+		// Check if this plugin is necessary; otherwise, just exits.
+		if ( !$this->validate() )
+		{
+			return;
+		}
+
+
+		// Install PWA.
+		add_action( 'init', array($this, 'init') );
+
+
+		$redirection = !empty($_GET['amp']) ? $_GET['amp'] : '';
+		$style = !empty($_COOKIE['pwamp_style']) ? $_COOKIE['pwamp_style'] : '';
+
+		// Check if end user forces to activate or deactivate AMP.
+		if ( !empty($redirection) )
+		{
+			$device = $redirection != 'on' ? 'desktop' : 'mobile';
+		}
+
+		// Check previous saved mobile device detection result.
+		elseif ( !empty($style) )
+		{
+			$device = $style != 'mobile' ? 'desktop' : 'mobile';
+		}
+
+		// Mobile device detection
+		else
+		{
+			// Use web browser User Agent data to detect if end user's device is mobile or not.
+			$device = $this->get_device();
+
+			$device = ( $device == 'desktop' || $device == 'bot' ) ? 'desktop' : 'mobile';
+		}
+
+		// Save mobile device detection result, so it is not necessary to run the get_device() for every page.
+		// Make the cookie expires in 30 days.
+		setcookie('pwamp_style', $device, time() + 60 * 60 * 24 * 30, COOKIEPATH, COOKIE_DOMAIN);
+
+		// Mobile device redirection.  If end user does not access from mobile device, exits this plugin.
+		if ( $device != 'mobile' )
+		{
+			// Add <link rel="amphtml" href="..."> for non-mobile pages.  So AMP pages can be found by these amphtml links.
+			add_action( 'wp_head', array($this, 'get_amphtml'), 0 );
+
+			return;
+		}
+
+
+		// Prepare to catch page output.
+		add_action( 'after_setup_theme', array($this, 'after_setup_theme') );
+
+		// When page output is finished, updates the page content to make it AMP compliant.
+		add_action( 'shutdown', array($this, 'shutdown') );
+
+
+		// When end users submit comments successfully, continues with comment_post_redirect().
+		add_filter( 'comment_post_redirect', array($this, 'comment_post_redirect'), 10, 2 );
+
+		// When end users submit comments failure, continues with wp_die_handler().
+		add_filter( 'wp_die_handler', array($this, 'wp_die_handler'), 10, 1 );
+	}
 }
 
 
-/*
-	The main function of this plugin.
-*/
 function pwamp_main()
 {
 	$pwamp = new PWAMP();
 
-	// Check if this plugin is necessary; otherwise, just exits.
-	if ( !$pwamp->validate() )
-	{
-		return;
-	}
-
-
-	$redirection = !empty($_GET['amp']) ? $_GET['amp'] : '';
-	$style = !empty($_COOKIE['pwamp_style']) ? $_COOKIE['pwamp_style'] : '';
-
-	// Check if end user forces to activate or deactivate AMP.
-	if ( !empty($redirection) )
-	{
-		$device = $redirection != 'on' ? 'desktop' : 'mobile';
-	}
-
-	// Check previous saved mobile device detection result.
-	elseif ( !empty($style) )
-	{
-		$device = $style != 'mobile' ? 'desktop' : 'mobile';
-	}
-
-	// Mobile device detection
-	else
-	{
-		// Use web browser User Agent data to detect if end user's device is mobile or not.
-		$device = $pwamp->get_device();
-
-		$device = ( $device == 'desktop' || $device == 'bot' ) ? 'desktop' : 'mobile';
-	}
-
-	// Save mobile device detection result, so it is not necessary to run the get_device() for every page.
-	// Make the cookie expires in 30 days.
-	setcookie('pwamp_style', $device, time() + 60 * 60 * 24 * 30, COOKIEPATH, COOKIE_DOMAIN);
-
-	// Mobile device redirection.  If end user does not access from mobile device, exits this plugin.
-	if ( $device != 'mobile' )
-	{
-		// Add <link rel="amphtml" href="..."> for non-mobile pages.  So AMP pages can be found by these amphtml links.
-		add_action( 'wp_head', array($pwamp, 'get_amphtml'), 0 );
-
-		return;
-	}
-
-
-	// Install PWA.
-	add_action( 'init', array($pwamp, 'init') );
-
-
-	// Prepare to catch page output.
-	add_action( 'after_setup_theme', array($pwamp, 'after_setup_theme') );
-
-	// When page output is finished, updates the page content to make it AMP compliant.
-	add_action( 'shutdown', array($pwamp, 'shutdown') );
-
-
-	// When end users submit comments successfully, continues with comment_post_redirect().
-	add_filter( 'comment_post_redirect', array($pwamp, 'comment_post_redirect'), 10, 2 );
-
-	// When end users submit comments failure, continues with wp_die_handler().
-	add_filter( 'wp_die_handler', array($pwamp, 'wp_die_handler'), 10, 1 );
+	$pwamp->run();
 }
 add_action( 'plugins_loaded', 'pwamp_main', 1 );

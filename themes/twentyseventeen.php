@@ -2,7 +2,7 @@
 /*
 	project: PWAMP
 	file:    ABSPATH/wp-content/plugins/pwamp/themes/twentyseventeen.php
-	version: 0.1.0
+	version: 1.0.0
 	author:  Rickey Gu
 	web:     https://flexplat.com
 	email:   rickey29@gmail.com
@@ -27,7 +27,7 @@ class PWAMP_Application extends PWAMP_Library
 	}
 
 
-	public function index(&$page, $canonical, $home_url, $permalink_structure)
+	public function update(&$page, $canonical, $home_url, $permalink_structure)
 	{
 		$page = $this->update_content($page, $home_url, $permalink_structure);
 
