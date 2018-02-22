@@ -5,7 +5,7 @@ Tags: accelerated mobile pages, adaptive, amp, mobile, mobile-first, mobile-frie
 Requires at least: 4.7
 Tested up to: 4.9.4
 Requires PHP: 5.2.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -35,6 +35,10 @@ Enter "https://yoursite.com/?amp=off" in your web browser address bar.
 1. https://download.flexplat.com/pwamp.png
 
 == Changelog ==
+
+= 1.0.1 =
+(Thur., Feb. 22, 2018)
+* bug fix: replace unserialize() with json_decode(), replace serialize() with json_encode().
 
 = 1.0.0 =
 (Sun., Feb. 18, 2018)

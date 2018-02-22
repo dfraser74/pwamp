@@ -2,7 +2,7 @@
 /*
 	project: PWAMP
 	file:    ABSPATH/wp-content/plugins/pwamp/themes/twentyfifteen.php
-	version: 1.0.0
+	version: 1.0.1
 	author:  Rickey Gu
 	web:     https://flexplat.com
 	email:   rickey29@gmail.com
