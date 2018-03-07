@@ -3,7 +3,7 @@
 Plugin Name: PWAMP
 Plugin URI:  https://flexplat.com/pwamp/
 Description: PWAMP is a WordPress solution for both lightning fast load time of AMP pages and first load cache-enabled of PWA pages.
-Version:     1.0.1
+Version:     1.1.0
 Author:      Rickey Gu
 Author URI:  https://flexplat.com
 Text Domain: pwamp
@@ -18,6 +18,7 @@ class PWAMP
 		Current supporting theme list.
 	*/
 	private $theme_list = array(
+		'Illdy' => 'illdy',
 		'Twenty Fifteen' => 'twentyfifteen',
 		'Twenty Seventeen' => 'twentyseventeen',
 		'Twenty Sixteen' => 'twentysixteen',
@@ -189,7 +190,7 @@ class PWAMP
 
 
 	/*
-		When installing PWA, this .js should be run from the root directory.
+		When installing Service Worker, echo this .js file.
 	*/
 	private function echo_sw_js()
 	{
@@ -204,7 +205,7 @@ self.addEventListener(\'install\', function(event) {
 	}
 
 	/*
-		When installing PWA, this .html should be run from the root directory.
+		When installing Service Worker, echo this .html file.
 	*/
 	private function echo_sw_html()
 	{
@@ -232,7 +233,7 @@ self.addEventListener(\'install\', function(event) {
 	}
 
 	/*
-		Install PWA.
+		Install Service Worker.
 	*/
 	public function init()
 	{
@@ -267,7 +268,7 @@ self.addEventListener(\'install\', function(event) {
 	/*
 		Catch any page output.
 	*/
-	private function callback_catch_page($page)
+	private function catch_page_callback($page)
 	{
 		$this->page .= $page;
 	}
@@ -285,7 +286,7 @@ self.addEventListener(\'install\', function(event) {
 	{
 		if ( empty($_COOKIE['pwamp_message']) )
 		{
-			ob_start(array($this, 'callback_catch_page'));
+			ob_start(array($this, 'catch_page_callback'));
 
 			return;
 		}
@@ -318,7 +319,7 @@ self.addEventListener(\'install\', function(event) {
 	*/
 	public function shutdown()
 	{
-		$page = $this->update_page();
+		$page = $this->transcode_page();
 		if ( empty($page) )
 		{
 			echo $this->page;
@@ -377,15 +378,16 @@ self.addEventListener(\'install\', function(event) {
 	/*
 		Updates page content according to AMP requirement.
 	*/
-	private function update_page()
+	private function transcode_page()
 	{
 		$page = $this->page;
 		$canonical = $this->get_canonical();
 		$home_url = home_url();
-		$permalink_structure = get_option('permalink_structure');
+		$permalink = !empty(get_option('permalink_structure')) ? 'pretty' : 'ugly';
+		$theme_uri = get_template_directory_uri();
 
 		$theme = $this->theme_id;
-		$template = 'update';
+		$template = 'transcode';
 
 		$file = plugin_dir_path(__FILE__) . 'themes/' . $theme . '.php';
 
@@ -405,7 +407,7 @@ self.addEventListener(\'install\', function(event) {
 
 		try
 		{
-			$page = $application->$template($page, $canonical, $home_url, $permalink_structure);
+			$page = $application->$template($page, $canonical, $home_url, $permalink, $theme_uri);
 		}
 		catch ( Exception $e )
 		{
@@ -509,7 +511,7 @@ self.addEventListener(\'install\', function(event) {
 	/*
 		The main function of this plugin.
 	*/
-	public function run()
+	public function main()
 	{
 		// Check if this plugin is necessary; otherwise, just exits.
 		if ( !$this->validate() )
@@ -580,6 +582,6 @@ function pwamp_main()
 {
 	$pwamp = new PWAMP();
 
-	$pwamp->run();
+	$pwamp->main();
 }
 add_action( 'plugins_loaded', 'pwamp_main', 1 );
