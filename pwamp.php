@@ -3,7 +3,7 @@
 Plugin Name: PWAMP
 Plugin URI:  https://flexplat.com/pwamp/
 Description: PWAMP is a WordPress solution for both lightning fast load time of AMP pages and first load cache-enabled of PWA pages.
-Version:     1.1.0
+Version:     1.2.0
 Author:      Rickey Gu
 Author URI:  https://flexplat.com
 Text Domain: pwamp
@@ -14,22 +14,6 @@ if ( !defined('ABSPATH') ) exit;  // Exit if accessed directly.
 
 class PWAMP
 {
-	/*
-		Current supporting theme list.
-	*/
-	private $theme_list = array(
-		'Illdy' => 'illdy',
-		'Twenty Fifteen' => 'twentyfifteen',
-		'Twenty Seventeen' => 'twentyseventeen',
-		'Twenty Sixteen' => 'twentysixteen',
-	);
-
-	/*
-		Current activated theme Id (TextDomain).
-	*/
-	private $theme_id = '';
-
-
 	/*
 		Web browser User Agent data, used for mobile device detection.
 	*/
@@ -147,20 +131,14 @@ class PWAMP
 			return false;
 		}
 
-		$theme = wp_get_theme();
-		$theme_name = esc_html( $theme->get( 'Name' ) );
-		$theme_id = esc_html( $theme->get( 'TextDomain' ) );
-		foreach ( $this->theme_list as $key => $value )
+		$theme = esc_html( wp_get_theme()->get( 'TextDomain' ) );
+		$file = plugin_dir_path(__FILE__) . 'themes/' . $theme . '.php';
+		if ( !file_exists($file) )
 		{
-			if ( $key == $theme_name && $value == $theme_id )
-			{
-				$this->theme_id = $theme_id;
-
-				return true;
-			}
+			return false;
 		}
 
-		return false;
+		return true;
 	}
 
 
@@ -215,7 +193,7 @@ self.addEventListener(\'install\', function(event) {
 <head>
 <title>PWAMP: installing service worker</title>
 <script type=\'text/javascript\'>
-	var swsource = \'' . home_url() . '/' . ( !empty(get_option('permalink_structure')) ? 'pwamp-sw.js' : '?pwamp=sw-js' ) . '\';
+	var swsource = \'' . home_url() . '/' . ( !empty(get_option('permalink_structure')) ? 'pwamp-sw-js' : '?pwamp-sw-js' ) . '\';
 	if ( \'serviceWorker\' in navigator ) {
 		navigator.serviceWorker.register(swsource).then(function(reg) {
 			console.log(\'ServiceWorker scope: \', reg.scope);
@@ -242,24 +220,34 @@ self.addEventListener(\'install\', function(event) {
 
 		if ( !empty(get_option('permalink_structure')) )
 		{
-			if ( $current_url == home_url() . '/pwamp-sw.js' )
+			if ( $current_url == home_url() . '/pwamp-sw-js' )
 			{
 				$this->echo_sw_js();
 			}
-			elseif ( $current_url == home_url() . '/pwamp-sw.html' )
+			elseif ( $current_url == home_url() . '/pwamp-sw-html' )
 			{
 				$this->echo_sw_html();
+			}
+			elseif ( preg_match('~^' . home_url() . '/pwamp-viewport-width=(\d+)$~im', $current_url, $matches) )
+			{
+				$viewport_width = $matches[1];
+				setcookie('pwamp_viewport_width', $viewport_width, time() + 60 * 60 * 24 * 365, COOKIEPATH, COOKIE_DOMAIN);
 			}
 		}
 		else
 		{
-			if ( $current_url == home_url() . '/?pwamp=sw-js' )
+			if ( $current_url == home_url() . '/?pwamp-sw-js' )
 			{
 				$this->echo_sw_js();
 			}
-			elseif ( $current_url == home_url() . '/?pwamp=sw-html' )
+			elseif ( $current_url == home_url() . '/?pwamp-sw-html' )
 			{
 				$this->echo_sw_html();
+			}
+			elseif ( preg_match('~^' . home_url() . '/\?pwamp-viewport-width=(\d+)$~im', $current_url, $matches) )
+			{
+				$viewport_width = $matches[1];
+				setcookie('pwamp_viewport_width', $viewport_width, time() + 60 * 60 * 24 * 365, COOKIEPATH, COOKIE_DOMAIN);
 			}
 		}
 	}
@@ -331,6 +319,70 @@ self.addEventListener(\'install\', function(event) {
 	}
 
 
+	private function get_page_type()
+	{
+		global $wp_query;
+
+		$type = 'undefined';
+		if ( $wp_query->is_page )
+		{
+			$type = is_front_page() ? 'front' : 'page';
+		}
+		elseif ( $wp_query->is_home )
+		{
+			$type = 'home';
+		}
+		elseif ( $wp_query->is_single )
+		{
+			$type = ( $wp_query->is_attachment ) ? 'attachment' : 'single';
+		}
+		elseif ( $wp_query->is_category )
+		{
+			$type = 'category';
+		}
+		elseif ( $wp_query->is_tag )
+		{
+			$type = 'tag';
+		}
+		elseif ( $wp_query->is_tax )
+		{
+			$type = 'tax';
+		}
+		elseif ( $wp_query->is_archive )
+		{
+			if ( $wp_query->is_day )
+			{
+				$type = 'day';
+			}
+			elseif ( $wp_query->is_month )
+			{
+				$type = 'month';
+			}
+			elseif ( $wp_query->is_year )
+			{
+				$type = 'year';
+			}
+			elseif ( $wp_query->is_author )
+			{
+				$type = 'author';
+			}
+			else
+			{
+				$type = 'archive';
+			}
+		}
+		elseif ( $wp_query->is_search )
+		{
+			$type = 'search';
+		}
+		elseif ( $wp_query->is_404 )
+		{
+			$type = 'notfound';
+		}
+
+		return $type;
+	}
+
 	/*
 		Detect end user's device.
 	*/
@@ -380,15 +432,20 @@ self.addEventListener(\'install\', function(event) {
 	*/
 	private function transcode_page()
 	{
-		$page = $this->page;
-		$canonical = $this->get_canonical();
-		$home_url = home_url();
-		$permalink = !empty(get_option('permalink_structure')) ? 'pretty' : 'ugly';
-		$theme_uri = get_template_directory_uri();
+		$page = preg_replace('~^[\s\t]*<style type="[^"]+" id="[^"]+"></style>$~im', '', $this->page);
 
-		$theme = $this->theme_id;
-		$template = 'transcode';
+		$data = array();
+		$data['canonical'] = $this->get_canonical();
+		$data['home_url'] = home_url();
+		$data['permalink'] = !empty(get_option('permalink_structure')) ? 'pretty' : 'ugly';
+		$data['theme_uri'] = get_template_directory_uri();
+		$data['viewport_width'] = !empty($_COOKIE['pwamp_viewport_width']) ? $_COOKIE['pwamp_viewport_width'] : '';
 
+		$theme = esc_html( wp_get_theme()->get( 'TextDomain' ) );
+		$template = $this->get_page_type();
+
+
+		$library = plugin_dir_path(__FILE__) . 'themes/common.php';
 		$file = plugin_dir_path(__FILE__) . 'themes/' . $theme . '.php';
 
 		if ( !file_exists($file) )
@@ -396,18 +453,28 @@ self.addEventListener(\'install\', function(event) {
 			return;
 		}
 
+		include($library);
 		include($file);
 
-		$application = new PWAMP_Application();
+		try
+		{
+			$application = new PWAMP_Application();
+		}
+		catch ( Exception $e )
+		{
+			return;
+		}
 
-		if ( !method_exists($application, $template) )
+		$method = 'transcode';
+
+		if ( !method_exists($application, $method) )
 		{
 			return;
 		}
 
 		try
 		{
-			$page = $application->$template($page, $canonical, $home_url, $permalink, $theme_uri);
+			$application->$method($template, $page, $data);
 		}
 		catch ( Exception $e )
 		{
