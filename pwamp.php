@@ -3,7 +3,7 @@
 Plugin Name: PWAMP
 Plugin URI:  https://flexplat.com/pwamp/
 Description: PWAMP is a WordPress solution for both lightning fast load time of AMP pages and first load cache-enabled of PWA pages.
-Version:     1.2.0
+Version:     1.3.0
 Author:      Rickey Gu
 Author URI:  https://flexplat.com
 Text Domain: pwamp
@@ -228,7 +228,7 @@ self.addEventListener(\'install\', function(event) {
 			{
 				$this->echo_sw_html();
 			}
-			elseif ( preg_match('~^' . home_url() . '/pwamp-viewport-width=(\d+)$~im', $current_url, $matches) )
+			elseif ( preg_match('~^' . home_url() . '/\?pwamp-viewport-width=(\d+)$~im', $current_url, $matches) )
 			{
 				$viewport_width = $matches[1];
 				setcookie('pwamp_viewport_width', $viewport_width, time() + 60 * 60 * 24 * 365, COOKIEPATH, COOKIE_DOMAIN);
