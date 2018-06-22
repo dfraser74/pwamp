@@ -1,8 +1,7 @@
 <?php
 if ( !defined( 'ABSPATH' ) ) exit;  // Exit if accessed directly.
 
-
-class PWAMP_Common
+class PWAMP_ThemeCom
 {
 	public function __construct()
 	{
@@ -44,22 +43,42 @@ class PWAMP_Common
 			}
 
 			$value = str_replace(array('(', ')', '.'), array('\(', '\)', '\.'), $value);
-
-			if ( !isset($min_width) && !isset($max_width) )
+			if ( isset($min_width) && isset($max_width) )
 			{
-				$amp_style = preg_replace('~@media\b' . $value . '\{([\s\S]+?\})\s*\}~', '', $amp_style, 1);
+				if ( $viewport_width < $min_width || $viewport_width > $max_width )
+				{
+					$amp_style = preg_replace('~@media\b' . $value . '\{([\s\S]+?\})\s*\}~', '', $amp_style, 1);
+				}
+				else
+				{
+					$amp_style = preg_replace('~@media\b' . $value . '\{([\s\S]+?\})\s*\}~', $matches[2][$key], $amp_style, 1);
+				}
 			}
-			elseif ( !isset($max_width) && $viewport_width < $min_width )
+			elseif ( isset($min_width) )
 			{
-				$amp_style = preg_replace('~@media\b' . $value . '\{([\s\S]+?\})\s*\}~', '', $amp_style, 1);
+				if ( $viewport_width < $min_width )
+				{
+					$amp_style = preg_replace('~@media\b' . $value . '\{([\s\S]+?\})\s*\}~', '', $amp_style, 1);
+				}
+				else
+				{
+					$amp_style = preg_replace('~@media\b' . $value . '\{([\s\S]+?\})\s*\}~', $matches[2][$key], $amp_style, 1);
+				}
 			}
-			elseif ( !isset($min_width) && $viewport_width > $max_width )
+			elseif ( isset($max_width) )
 			{
-				$amp_style = preg_replace('~@media\b' . $value . '\{([\s\S]+?\})\s*\}~', '', $amp_style, 1);
+				if ( $viewport_width > $max_width )
+				{
+					$amp_style = preg_replace('~@media\b' . $value . '\{([\s\S]+?\})\s*\}~', '', $amp_style, 1);
+				}
+				else
+				{
+					$amp_style = preg_replace('~@media\b' . $value . '\{([\s\S]+?\})\s*\}~', $matches[2][$key], $amp_style, 1);
+				}
 			}
 			else
 			{
-				$amp_style = preg_replace('~@media\b' . $value . '\{([\s\S]+?\})\s*\}~', $matches[2][$key], $amp_style, 1);
+				$amp_style = preg_replace('~@media\b' . $value . '\{([\s\S]+?\})\s*\}~', '', $amp_style, 1);
 			}
 		}
 	}
@@ -97,8 +116,8 @@ class PWAMP_Common
 		$page = preg_replace('~<audio\b~i', '<amp-audio', $page);
 
 		$serviceworker = '<amp-install-serviceworker
-	src="' . $home_url . '/' . ( $permalink == 'pretty' ? 'pwamp-sw-js' : '?pwamp-sw-js' ) . '"
-	data-iframe-src="' . $home_url . '/' . ( $permalink == 'pretty' ? 'pwamp-sw-html' : '?pwamp-sw-html' ) . '"
+	src="' . $home_url . '/' . ( $permalink == 'pretty' ? '' : '?' ) . 'pwamp-sw-js"
+	data-iframe-src="' . $home_url . '/' . ( $permalink == 'pretty' ? '' : '?' ) . 'pwamp-sw-html"
 	layout="nodisplay">
 </amp-install-serviceworker>' . "\n";
 		$serviceworker .= '<amp-pixel src="' . $home_url . '/?pwamp-viewport-width=VIEWPORT_WIDTH" layout="nodisplay"></amp-pixel>' . "\n";
@@ -121,7 +140,7 @@ class PWAMP_Common
 		$page = preg_replace('~<iframe\b~i', '<amp-iframe', $page);
 
 		// The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'?
-		$pattern = '~<img\b(([^>]*) width=(["|\'])(\d+)\3([^>]*))>~i';
+		$pattern = '~<img\b(([^>]*) width=(["|\'])(\d+)\3([^>]*))/?>~iU';
 		if ( preg_match_all($pattern, $page, $matches) )
 		{
 			foreach ( $matches[4] as $key => $value )
@@ -131,11 +150,25 @@ class PWAMP_Common
 					$width = $value;
 					$height = intval($width * 3 / 4);
 
-					$page = preg_replace($pattern, '<amp-img' . $matches[2][$key] . ' width="' . $width . '" height="' . $height . '"' . $matches[5][$key] . '>', $page, 1);
+					if ( !preg_match('~layout=(["|\'])responsive\1~i', $matches[1][$key]) )
+					{
+						$page = preg_replace($pattern, '<amp-img' . $matches[2][$key] . ' width="' . $width . '" height="' . $height . '"' . $matches[5][$key] . 'layout="responsive" />', $page, 1);
+					}
+					else
+					{
+						$page = preg_replace($pattern, '<amp-img' . $matches[2][$key] . ' width="' . $width . '" height="' . $height . '"' . $matches[5][$key] . '/>', $page, 1);
+					}
 				}
 				else
 				{
-					$page = preg_replace($pattern, '<amp-img' . $matches[1][$key] . '>', $page, 1);
+					if ( !preg_match('~layout=(["|\'])responsive\1~i', $matches[1][$key]) )
+					{
+						$page = preg_replace($pattern, '<amp-img' . $matches[1][$key] . 'layout="responsive" />', $page, 1);
+					}
+					else
+					{
+						$page = preg_replace($pattern, '<amp-img' . $matches[1][$key] . '/>', $page, 1);
+					}
 				}
 			}
 		}
@@ -205,7 +238,7 @@ class PWAMP_Common
 		$page = preg_replace('~^[\s\t]*<title>(.*)</title>$~im', '<title>${1}</title>', $page, 1);
 	}
 
-	protected function transcode_head(&$page, &$amp_style, $canonical, $viewport_width)
+	protected function transcode_head(&$page, &$amp_style, $home_url, $permalink, $canonical_url, $viewport_width)
 	{
 		// Remove blank lines.
 		$page = preg_replace('~(^[\r\n]*|[\r\n]+)[\s\t]*[\r\n]+~', "\n", $page);
@@ -214,14 +247,18 @@ class PWAMP_Common
 		$this->retrofit_media($amp_style, $viewport_width);
 
 
-		// The mandatory tag 'amphtml engine v0.js script' is missing or incorrect.
-		$amp_header = '<script async src="https://cdn.ampproject.org/v0.js"></script>' . "\n";
-
-		// The mandatory tag 'link rel=canonical' is missing or incorrect.
-		$amp_header .= $canonical . "\n";
+		$amp_header = '<link rel="manifest" href="' . $home_url . '/' . ( $permalink == 'pretty' ? '' : '?' ) . 'manifest.webmanifest">' . "\n";
 
 		// The property 'minimum-scale' is missing from attribute 'content' in tag 'meta name=viewport'.
 		$amp_header .= '<meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1">' . "\n";
+
+		$amp_header .= '<meta name="theme-color" content="#ffffff">' . "\n";
+
+		// The mandatory tag 'amphtml engine v0.js script' is missing or incorrect.
+		$amp_header .= '<script async src="https://cdn.ampproject.org/v0.js"></script>' . "\n";
+
+		// The mandatory tag 'link rel=canonical' is missing or incorrect.
+		$amp_header .= '<link rel="canonical" href="' . $canonical_url . '" />' . "\n";
 
 		// The mandatory tag 'noscript enclosure for boilerplate' is missing or incorrect.
 		$amp_header .= '<style amp-boilerplate>body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}</style><noscript><style amp-boilerplate>body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}</style></noscript>' . "\n";

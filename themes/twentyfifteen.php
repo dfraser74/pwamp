@@ -1,8 +1,7 @@
 <?php
 if ( !defined( 'ABSPATH' ) ) exit;  // Exit if accessed directly.
 
-
-class PWAMP_Application extends PWAMP_Common
+class PWAMP_Theme extends PWAMP_ThemeCom
 {
 	public function __construct()
 	{
@@ -16,8 +15,8 @@ class PWAMP_Application extends PWAMP_Common
 
 	public function transcode($template, &$page, $data)
 	{
-		if ( !isset($data['canonical']) || !is_string($data['canonical']) ||
-			!isset($data['home_url']) || !is_string($data['home_url']) ||
+		if ( !isset($data['home_url']) || !is_string($data['home_url']) ||
+			!isset($data['canonical_url']) || !is_string($data['canonical_url']) ||
 			!isset($data['permalink']) || !is_string($data['permalink']) ||
 			!isset($data['viewport_width']) || !is_string($data['viewport_width']) )
 		{
@@ -26,8 +25,8 @@ class PWAMP_Application extends PWAMP_Common
 			return;
 		}
 
-		$canonical = $data['canonical'];
 		$home_url = $data['home_url'];
+		$canonical_url = $data['canonical_url'];
 		$permalink = $data['permalink'];
 		$viewport_width = !empty($data['viewport_width']) ? intval($data['viewport_width']) : 0;
 
@@ -81,6 +80,6 @@ class PWAMP_Application extends PWAMP_Common
 		$page = preg_replace('~<amp-img alt=\'\' src=\'[^\']+\' srcset=\'[^\']+\' class=\'[^\']+\' height=\'\d+\' width=\'\d+\' />[\s\t]*~i', '', $page);
 
 
-		$this->transcode_head($page, $amp_style, $canonical, $viewport_width);
+		$this->transcode_head($page, $amp_style, $home_url, $permalink, $canonical_url, $viewport_width);
 	}
 }
